@@ -294,7 +294,7 @@ leaflet(data = data,options = list(zoomControl = FALSE,attributionControl=FALSE)
              options = pathOptions(pane = "true")) %>%
   addMarkers(lat = event_lat, lng = event_lon, icon = icon.eqn,
              options = pathOptions(pane = "EQN")) %>%
-  addMarkers(lat = post_lat, lng = post_lon, icon = icon.post,
+  addMarkers(lat = post_estimates[1], lng = post_estimates[2], icon = icon.post,
              options = pathOptions(pane = "SEQM")) %>%
   addLegendFactor(pal = pal, values = ~factor(threshold), opacity = 1,
                   shape = 'circle', title = "Trigger time",
@@ -335,7 +335,7 @@ pal2 <- colorNumeric(heat.colors(NLEV, NULL)[LEVS], domain = kde$fhat)
 
 leaflet(data = data,options = list(zoomControl = FALSE,attributionControl=FALSE)) %>%
   addTiles() %>%
-  setView(post_lon,post_lat, zoom = 9) %>%
+  setView(post_estimates[2],post_estimates[1], zoom = 9) %>%
   addMapPane("posterior points", zIndex = 400) %>%
   addMapPane("posterior", zIndex = 410) %>%
   addMapPane("no_triggers", zIndex = 420) %>%
@@ -361,7 +361,7 @@ leaflet(data = data,options = list(zoomControl = FALSE,attributionControl=FALSE)
              options = pathOptions(pane = "true")) %>%
   addMarkers(lat = event_lat, lng = event_lon, icon = icon.eqn,
              options = pathOptions(pane = "EQN")) %>%
-  addMarkers(lat = post_lat, lng = post_lon, icon = icon.post,
+  addMarkers(lat = post_estimates[1], lng = post_estimates[2], icon = icon.post,
              options = pathOptions(pane = "SEQM")) %>%
   addLegend(pal = pal2,
             value = kde$fhat,
@@ -396,12 +396,12 @@ for (g in 1:G) {
     cat("### Progress:", g / G * 100, " % \n")
   }
   
-  mu <- mus(lats, lons, chain_lat0[g], chain_lon0[g], chain_t0[g], chain_d0[g], chain_vP[g])
+  mu <- mus(data$lat, data$lon, chain_lat0[g], chain_lon0[g], chain_t0[g], chain_d0[g], chain_vP[g])
   
   mu_P <- mu[, 1]
   mu_S <- mu[, 2]
   
-  aux <- sapply(1:N, function(i) {
+  aux <- sapply(1:dim(data)[1], function(i) {
     exp(-time / chain_invlambda[g]) *
       (chain_pi[g] + (1 - chain_pi[g]) *
          (chain_alpha[g] * pnorm(time, mu_P[i], chain_tau[g], lower.tail = FALSE) +
@@ -429,14 +429,14 @@ colnames(surv_quantiles) <- c("time","median","lb","ub")
 
 library(ggsurvfit)
 
-survfit2(Surv(y, delta) ~ 1) %>%
+survfit2(Surv(data$time, data$delta) ~ 1) %>%
   ggsurvfit() +
   labs(
     x = "Seconds",
     y = "Standardised survival function"
   ) +
   geom_line(data = surv_quantiles, aes(x=time,y=median), color = 2) +
-  geom_vline(aes(xintercept = as.numeric(difftime(true_time, base_time, units = "secs"))), color = 3) +
+  geom_vline(aes(xintercept = true_time), color = 3) +
   geom_ribbon(data = surv_quantiles, aes(x=time,ymin=lb,ymax=ub),
               color = 2, fill = 2, alpha = 0.33) +
   scale_x_continuous(breaks = seq(0,120, by = 20))
